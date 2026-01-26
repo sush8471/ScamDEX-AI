@@ -152,6 +152,25 @@ const Simulator = ({
     return "Analyzing...";
   };
 
+  const sanitizeAgentReply = (text: string): string => {
+    // 1. Remove overused AI gratitude/explanations
+    let cleaned = text
+      .replace(/(Thank you|Thanks|I understand|Certainly|I'd be happy to|Great news|I see|I'm sorry to hear that|Message received|Analyzing next steps)[^.!?]*[.!?]/gi, '')
+      .trim();
+
+    if (!cleaned) return text; // If regex over-cleaned, return original
+
+    // 2. Split into sentences and filter for brevity
+    const sentences = cleaned.match(/[^.!?]+[.!?]+/g) || [cleaned];
+    
+    // 3. Limit to max 2 short questions + 1 statement
+    const questions = sentences.filter(s => s.trim().endsWith('?')).slice(0, 2);
+    const statements = sentences.filter(s => !s.trim().endsWith('?')).slice(0, 1);
+
+    const result = [...statements, ...questions].join(' ').trim();
+    return result || cleaned;
+  };
+
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isResultMode || investigationComplete) return;
 
@@ -189,10 +208,11 @@ const Simulator = ({
       // 3. Update state with real data
       const agentMsg = {
         id: Date.now() + 1,
-        text:
+        text: sanitizeAgentReply(
           data.agentReply ||
           data.reply ||
-          "Message received. Analyzing next steps.",
+          "How do I proceed? Is this safe?"
+        ),
         sender: "agent",
         timestamp: new Date().toISOString(),
       };
@@ -279,7 +299,7 @@ const Simulator = ({
           ...prev,
           {
             id: Date.now() + 1,
-            text: agentReply.text,
+            text: sanitizeAgentReply(agentReply.text),
             sender: "agent",
             timestamp: new Date().toISOString(),
           },
@@ -461,7 +481,7 @@ const getMockResponse = (text: string) => {
   
   if (lowerText.includes("upi") || lowerText.includes("@")) {
     return {
-      text: "I see you're asking about payment. Most users find UPI the fastest way to secure the deal. Is there anything else you need?",
+      text: "Is this the right UPI? Should I pay now?",
       extracted: { upi: "secure.pay@okaxis" },
       isFinal: false
     };
@@ -469,7 +489,7 @@ const getMockResponse = (text: string) => {
   
   if (lowerText.includes("link") || lowerText.includes("http")) {
     return {
-      text: "The verification link is standard for all premium registrations. It's a secure portal hosted on our corporate servers. Visit: www.secure-verify-pay.com",
+      text: "The link isn't opening on my phone. Should I use a different browser?",
       extracted: { link: "https://secure-verification-portal.net/login" },
       isFinal: false
     };
@@ -477,7 +497,7 @@ const getMockResponse = (text: string) => {
 
   if (lowerText.includes("number") || lowerText.includes("call")) {
     return {
-      text: "You can reach our support manager directly at the priority desk for faster processing.",
+      text: "Can I call this number to verify? What's your name?",
       extracted: { phone: "+91 98765 43210" },
       isFinal: false
     };
@@ -485,13 +505,13 @@ const getMockResponse = (text: string) => {
 
   if (lowerText.includes("done") || lowerText.includes("sent") || lowerText.includes("paid")) {
     return {
-      text: "Excellent. I'm processing your request now. We will notify you once the transaction is verified on the blockchain.",
+      text: "I sent it. When will I get the benefits?",
       isFinal: true
     };
   }
 
   return {
-    text: "Interesting. Please tell me more about how you found us. We want to ensure all our clients get the best onboarding experience.",
+    text: "So how does this work? Is there a registration fee?",
     isFinal: false
   };
 };
