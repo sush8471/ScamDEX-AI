@@ -10,12 +10,36 @@ function App() {
   const [view, setView] = useState<AppState>('landing')
   const [sessionId, setSessionId] = useState('')
 
+  useEffect(() => {
+    const savedView = localStorage.getItem('app_view') as AppState
+    const savedSessionId = localStorage.getItem('app_sessionId')
+    if (savedView && savedView !== 'landing') {
+      setView(savedView)
+    }
+    if (savedSessionId) {
+      setSessionId(savedSessionId)
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('app_view', view)
+    if (sessionId) {
+      localStorage.setItem('app_sessionId', sessionId)
+    }
+  }, [view, sessionId])
+
   const startSimulation = () => {
-    setSessionId(uuidv4())
+    const newId = uuidv4()
+    setSessionId(newId)
     setView('simulation')
   }
 
   const reset = () => {
+    if (sessionId) {
+      localStorage.removeItem(`session_${sessionId}`)
+    }
+    localStorage.removeItem('app_view')
+    localStorage.removeItem('app_sessionId')
     setView('landing')
     setSessionId('')
   }

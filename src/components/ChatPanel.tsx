@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Send, User, Bot, Loader2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Send, User, Bot, Loader2, ShieldCheck } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -13,9 +13,10 @@ interface ChatPanelProps {
   onSend: (text: string) => void;
   isTyping: boolean;
   isLocked: boolean;
+  investigationComplete: boolean;
 }
 
-const ChatPanel = ({ messages, onSend, isTyping, isLocked }: ChatPanelProps) => {
+const ChatPanel = ({ messages, onSend, isTyping, isLocked, investigationComplete }: ChatPanelProps) => {
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -50,6 +51,20 @@ const ChatPanel = ({ messages, onSend, isTyping, isLocked }: ChatPanelProps) => 
           </div>
         </div>
       </div>
+
+      {/* Investigation Complete Badge */}
+      <AnimatePresence>
+        {investigationComplete && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="bg-green-500/10 border-b border-green-500/20 px-6 py-2.5 flex items-center justify-center gap-2 overflow-hidden"
+          >
+            <ShieldCheck size={14} className="text-green-500" />
+            <span className="text-xs font-bold text-green-500 uppercase tracking-widest">Investigation Complete</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages Area */}
       <div 
@@ -139,6 +154,18 @@ const ChatPanel = ({ messages, onSend, isTyping, isLocked }: ChatPanelProps) => 
             <Send size={18} />
           </button>
         </div>
+        
+        {investigationComplete && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-3 text-center"
+          >
+            <p className="text-[10px] text-slate-500 font-medium">
+              This conversation has been safely analyzed.
+            </p>
+          </motion.div>
+        )}
       </form>
     </div>
   )

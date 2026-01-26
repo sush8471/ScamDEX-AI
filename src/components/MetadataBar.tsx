@@ -1,13 +1,15 @@
-import { Terminal, Timer, Hash, MessageSquare, RotateCcw } from 'lucide-react'
+import { Terminal, Timer, Hash, MessageSquare, RotateCcw, Download, FileJson, ShieldCheck } from 'lucide-react'
 
 interface MetadataBarProps {
   sessionId: string;
   elapsed: string;
   msgCount: number;
   onReset: () => void;
+  onExport: () => void;
+  investigationComplete: boolean;
 }
 
-const MetadataBar = ({ sessionId, elapsed, msgCount, onReset }: MetadataBarProps) => {
+const MetadataBar = ({ sessionId, elapsed, msgCount, onReset, onExport, investigationComplete }: MetadataBarProps) => {
   return (
     <div className="bg-surface/80 border-b border-white/5 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-6">
@@ -35,10 +37,27 @@ const MetadataBar = ({ sessionId, elapsed, msgCount, onReset }: MetadataBarProps
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 px-3 py-1 bg-accent/10 border border-accent/20 rounded-full">
-          <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
-          <span className="text-[10px] font-bold text-accent uppercase tracking-widest">Live Integration</span>
-        </div>
+        {investigationComplete ? (
+          <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+            <ShieldCheck size={14} className="text-green-500" />
+            <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">Analysis Finalized</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-3 py-1 bg-accent/10 border border-accent/20 rounded-full">
+            <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
+            <span className="text-[10px] font-bold text-accent uppercase tracking-widest">Live Integration</span>
+          </div>
+        )}
+
+        <button 
+          onClick={onExport}
+          disabled={msgCount === 0}
+          className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed group"
+          title="Export Transcript"
+        >
+          <FileJson size={16} className="text-primary-light group-hover:scale-110 transition-transform" />
+          <span className="text-xs font-semibold">Export JSON</span>
+        </button>
         
         <button 
           onClick={onReset}
