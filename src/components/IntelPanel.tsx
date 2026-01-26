@@ -16,6 +16,7 @@ interface IntelPanelProps {
     phoneNumbers: string[];
     links: string[];
     keywords: string[];
+    logs: { type: 'ok' | 'wait' | 'warn' | 'info'; message: string; timestamp: string }[];
   };
   isResultMode: boolean;
 }
@@ -102,20 +103,20 @@ const IntelPanel = ({ intel, isResultMode }: IntelPanelProps) => {
           <span className="text-xs font-bold text-white uppercase tracking-wider">System Log</span>
         </div>
         <div className="space-y-2 font-mono text-[9px] text-slate-500">
-          <div className="flex gap-2">
-            <span className="text-accent opacity-50">[OK]</span>
-            <span>NEURAL_ENGINE_ACTIVE</span>
-          </div>
-          <div className="flex gap-2">
-            <span className="text-primary-light opacity-50">[WAIT]</span>
-            <span>LISTENING_FOR_INTENT</span>
-          </div>
-          {intel.scamDetected && (
-            <div className="flex gap-2">
-              <span className="text-alert opacity-50">[WARN]</span>
-              <span className="text-alert-light">PAYMENT_TRIGGER_IDENTIFIED</span>
+          {intel.logs.map((log, i) => (
+            <div key={i} className="flex gap-2">
+              <span className={cn(
+                "opacity-50",
+                log.type === 'ok' && "text-accent",
+                log.type === 'wait' && "text-primary-light",
+                log.type === 'warn' && "text-alert",
+                log.type === 'info' && "text-blue-400"
+              )}>
+                [{log.type.toUpperCase()}]
+              </span>
+              <span>{log.message}</span>
             </div>
-          )}
+          ))}
         </div>
       </div>
     </div>

@@ -30,6 +30,7 @@ interface Intel {
   phoneNumbers: string[];
   links: string[];
   keywords: string[];
+  logs: { type: 'ok' | 'wait' | 'warn' | 'info'; message: string; timestamp: string }[];
 }
 
 const Simulator = ({
@@ -47,6 +48,10 @@ const Simulator = ({
     phoneNumbers: [],
     links: [],
     keywords: [],
+    logs: [
+      { type: 'ok', message: 'NEURAL_ENGINE_ACTIVE', timestamp: new Date().toISOString() },
+      { type: 'wait', message: 'LISTENING_FOR_INTENT', timestamp: new Date().toISOString() },
+    ],
   });
   const [isTyping, setIsTyping] = useState(false);
   const [investigationComplete, setInvestigationComplete] = useState(false);
@@ -69,6 +74,10 @@ const Simulator = ({
             phoneNumbers: [],
             links: [],
             keywords: [],
+            logs: [
+              { type: 'ok', message: 'NEURAL_ENGINE_ACTIVE', timestamp: new Date().toISOString() },
+              { type: 'wait', message: 'LISTENING_FOR_INTENT', timestamp: new Date().toISOString() },
+            ],
           },
         );
         setInvestigationComplete(data.investigationComplete || false);
@@ -204,6 +213,26 @@ const Simulator = ({
           ...(data.extractedIntelligence?.links || [])
         ])];
 
+        // 4. Update Logs
+        const newLogs = [...prev.logs];
+        const lowerText = text.toLowerCase();
+        
+        if (localLinks.length > 0) {
+          newLogs.push({ type: 'info', message: 'URL_DETECTED', timestamp: new Date().toISOString() });
+        }
+        if (/(\+?\d{1,4}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/g.test(text)) {
+          newLogs.push({ type: 'info', message: 'PHONE_NUMBER_EXTRACTED', timestamp: new Date().toISOString() });
+        }
+        if (["free", "100% off", "win", "prize"].some(kw => lowerText.includes(kw))) {
+          newLogs.push({ type: 'warn', message: 'FREE_OFFER_PATTERN_MATCHED', timestamp: new Date().toISOString() });
+        }
+        if (["qr", "scan"].some(kw => lowerText.includes(kw))) {
+          newLogs.push({ type: 'warn', message: 'QR_CODE_TRIGGER_IDENTIFIED', timestamp: new Date().toISOString() });
+        }
+        if (newScamDetected && !prev.scamDetected) {
+          newLogs.push({ type: 'warn', message: 'PAYMENT_TRIGGER_IDENTIFIED', timestamp: new Date().toISOString() });
+        }
+
         return {
           ...prev,
           scamDetected: newScamDetected,
@@ -229,6 +258,7 @@ const Simulator = ({
                 ]),
               ]
             : prev.keywords,
+          logs: newLogs.slice(-8), // Keep last 8 logs
         };
       });
 
@@ -279,6 +309,16 @@ const Simulator = ({
           // Also extract links locally in fallback mode
           const localLinks = extractLinks(text);
           updated.links = [...new Set([...updated.links, ...localLinks])];
+
+          // Logs for Mock
+          const newLogs = [...prev.logs];
+          const lowerText = text.toLowerCase();
+          if (localLinks.length > 0) newLogs.push({ type: 'info', message: 'URL_DETECTED', timestamp: new Date().toISOString() });
+          if (/(\+?\d{1,4}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/g.test(text)) newLogs.push({ type: 'info', message: 'PHONE_NUMBER_EXTRACTED', timestamp: new Date().toISOString() });
+          if (["free", "100% off", "win", "prize"].some(kw => lowerText.includes(kw))) newLogs.push({ type: 'warn', message: 'FREE_OFFER_PATTERN_MATCHED', timestamp: new Date().toISOString() });
+          if (["qr", "scan"].some(kw => lowerText.includes(kw))) newLogs.push({ type: 'warn', message: 'QR_CODE_TRIGGER_IDENTIFIED', timestamp: new Date().toISOString() });
+          
+          updated.logs = newLogs.slice(-8);
           
           return updated;
         });
