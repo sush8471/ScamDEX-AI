@@ -187,6 +187,14 @@ const Simulator = ({
     return Math.min(count, 5);
   };
 
+  const getStage = () => {
+    if (investigationComplete) return "Investigation Complete";
+    const indicators = getIndicatorCount();
+    if (indicators >= 2) return "Intelligence Extraction";
+    if (messages.length > 0) return "Engagement";
+    return "Reconnaissance";
+  };
+
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isResultMode || investigationComplete) return;
 
@@ -438,6 +446,7 @@ const Simulator = ({
             isTyping={isTyping}
             isLocked={isResultMode || investigationComplete}
             investigationComplete={investigationComplete}
+            stage={getStage()}
           />
         </div>
 

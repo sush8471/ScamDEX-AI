@@ -14,9 +14,10 @@ interface ChatPanelProps {
   isTyping: boolean;
   isLocked: boolean;
   investigationComplete: boolean;
+  stage: string;
 }
 
-const ChatPanel = ({ messages, onSend, isTyping, isLocked, investigationComplete }: ChatPanelProps) => {
+const ChatPanel = ({ messages, onSend, isTyping, isLocked, investigationComplete, stage }: ChatPanelProps) => {
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -43,7 +44,18 @@ const ChatPanel = ({ messages, onSend, isTyping, isLocked, investigationComplete
             <User size={20} className="text-slate-400" />
           </div>
           <div>
-            <div className="text-sm font-bold text-white">External Target</div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-bold text-white">External Target</div>
+              <div className={cn(
+                "px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
+                stage === "Investigation Complete" ? "bg-green-500/20 text-green-500 border border-green-500/30" :
+                stage === "Intelligence Extraction" ? "bg-alert/20 text-alert border border-alert/30" :
+                stage === "Engagement" ? "bg-accent/20 text-accent border border-accent/30" :
+                "bg-slate-700/50 text-slate-400 border border-white/5"
+              )}>
+                {stage}
+              </div>
+            </div>
             <div className="text-[10px] text-accent font-mono uppercase tracking-wider flex items-center gap-1.5">
               <span className="w-1 h-1 bg-accent rounded-full animate-pulse" />
               Connected via SMS
