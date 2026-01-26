@@ -1,4 +1,10 @@
 import { Terminal, Timer, Hash, MessageSquare, RotateCcw, Download, FileJson, ShieldCheck } from 'lucide-react'
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
 interface MetadataBarProps {
   sessionId: string;
@@ -7,9 +13,10 @@ interface MetadataBarProps {
   onReset: () => void;
   onExport: () => void;
   investigationComplete: boolean;
+  indicatorCount: number;
 }
 
-const MetadataBar = ({ sessionId, elapsed, msgCount, onReset, onExport, investigationComplete }: MetadataBarProps) => {
+const MetadataBar = ({ sessionId, elapsed, msgCount, onReset, onExport, investigationComplete, indicatorCount }: MetadataBarProps) => {
   return (
     <div className="bg-surface/80 border-b border-white/5 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-6">
@@ -33,6 +40,38 @@ const MetadataBar = ({ sessionId, elapsed, msgCount, onReset, onExport, investig
           <MessageSquare size={16} className="text-primary-light" />
           <span className="text-xs font-mono text-slate-400 uppercase tracking-wider">Messages</span>
           <span className="text-sm font-mono text-white">{msgCount}</span>
+        </div>
+
+        <div className="h-4 w-[1px] bg-white/10 hidden lg:block" />
+
+        <div className="hidden lg:flex items-center gap-3 bg-white/5 px-4 py-1.5 rounded-full border border-white/10">
+          <Hash size={14} className="text-accent" />
+          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest whitespace-nowrap">Indicators Collected</span>
+          <div className="flex items-center gap-1.5">
+            <span className={cn(
+              "text-sm font-mono font-bold",
+              indicatorCount >= 5 ? "text-alert" : "text-white"
+            )}>
+              {indicatorCount}
+            </span>
+            <span className="text-xs font-mono text-slate-600">/</span>
+            <span className="text-xs font-mono text-slate-500">5</span>
+          </div>
+          {indicatorCount > 0 && (
+            <div className="flex gap-0.5 ml-1">
+              {[...Array(5)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className={cn(
+                    "w-1.5 h-3 rounded-[1px] transition-all duration-500",
+                    i < indicatorCount 
+                      ? (indicatorCount >= 5 ? "bg-alert" : "bg-accent") 
+                      : "bg-white/10"
+                  )} 
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

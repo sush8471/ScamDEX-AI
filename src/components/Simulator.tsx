@@ -146,6 +146,12 @@ const Simulator = ({
     return text.match(urlRegex) || [];
   };
 
+  const extractKeywords = (text: string): string[] => {
+    const list = ["free", "100% off", "urgent", "win", "winner", "prize", "cash", "account blocked", "verify"];
+    const lower = text.toLowerCase();
+    return list.filter(kw => lower.includes(kw));
+  };
+
   const getClassification = (confidence: number): string => {
     if (confidence > 70) return "Scam Confirmed";
     if (confidence > 30) return "Likely Scam";
@@ -169,6 +175,16 @@ const Simulator = ({
 
     const result = [...statements, ...questions].join(' ').trim();
     return result || cleaned;
+  };
+
+  const getIndicatorCount = () => {
+    let count = 0;
+    if (intel.keywords.length > 0) count++;
+    if (intel.phoneNumbers.length > 0) count++;
+    if (intel.links.length > 0) count++;
+    if (intel.upiIds.length > 0 || intel.scamDetected) count++;
+    if (intel.logs.some(l => ['FREE_OFFER_PATTERN_MATCHED', 'QR_CODE_TRIGGER_IDENTIFIED', 'PAYMENT_TRIGGER_IDENTIFIED'].includes(l.message))) count++;
+    return Math.min(count, 5);
   };
 
   const handleSendMessage = async (text: string) => {
@@ -253,6 +269,21 @@ const Simulator = ({
           newLogs.push({ type: 'warn', message: 'PAYMENT_TRIGGER_IDENTIFIED', timestamp: new Date().toISOString() });
         }
 
+        const localKeywords = extractKeywords(text);
+        const combinedKeywords = [...new Set([
+          ...prev.keywords,
+          ...localKeywords,
+          ...(data.extractedIntelligence?.keywords || [])
+        ])];
+
+        const phoneRegex = /(\+?\d{1,4}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/g;
+        const localPhones = text.match(phoneRegex) || [];
+        const combinedPhones = [...new Set([
+          ...prev.phoneNumbers,
+          ...localPhones,
+          ...(data.extractedIntelligence?.phoneNumbers || [])
+        ])];
+
         return {
           ...prev,
           scamDetected: newScamDetected,
@@ -261,23 +292,9 @@ const Simulator = ({
           upiIds: data.extractedIntelligence?.upiIds
             ? [...new Set([...prev.upiIds, ...data.extractedIntelligence.upiIds])]
             : prev.upiIds,
-          phoneNumbers: data.extractedIntelligence?.phoneNumbers
-            ? [
-                ...new Set([
-                  ...prev.phoneNumbers,
-                  ...data.extractedIntelligence.phoneNumbers,
-                ]),
-              ]
-            : prev.phoneNumbers,
+          phoneNumbers: combinedPhones,
           links: combinedLinks,
-          keywords: data.extractedIntelligence?.keywords
-            ? [
-                ...new Set([
-                  ...prev.keywords,
-                  ...data.extractedIntelligence.keywords,
-                ]),
-              ]
-            : prev.keywords,
+          keywords: combinedKeywords,
           logs: newLogs.slice(-8), // Keep last 8 logs
         };
       });
@@ -326,16 +343,23 @@ const Simulator = ({
           updated.scamType = getClassification(updated.confidence);
           updated.scamDetected = updated.confidence > 70;
           
-          // Also extract links locally in fallback mode
+          // Local extractions for Mock
           const localLinks = extractLinks(text);
           updated.links = [...new Set([...updated.links, ...localLinks])];
+          
+          const localKeywords = extractKeywords(text);
+          updated.keywords = [...new Set([...updated.keywords, ...localKeywords])];
+
+          const phoneRegex = /(\+?\d{1,4}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/g;
+          const localPhones = text.match(phoneRegex) || [];
+          updated.phoneNumbers = [...new Set([...updated.phoneNumbers, ...localPhones])];
 
           // Logs for Mock
           const newLogs = [...prev.logs];
           const lowerText = text.toLowerCase();
           if (localLinks.length > 0) newLogs.push({ type: 'info', message: 'URL_DETECTED', timestamp: new Date().toISOString() });
-          if (/(\+?\d{1,4}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/g.test(text)) newLogs.push({ type: 'info', message: 'PHONE_NUMBER_EXTRACTED', timestamp: new Date().toISOString() });
-          if (["free", "100% off", "win", "prize"].some(kw => lowerText.includes(kw))) newLogs.push({ type: 'warn', message: 'FREE_OFFER_PATTERN_MATCHED', timestamp: new Date().toISOString() });
+          if (localPhones.length > 0) newLogs.push({ type: 'info', message: 'PHONE_NUMBER_EXTRACTED', timestamp: new Date().toISOString() });
+          if (localKeywords.length > 0) newLogs.push({ type: 'warn', message: 'FREE_OFFER_PATTERN_MATCHED', timestamp: new Date().toISOString() });
           if (["qr", "scan"].some(kw => lowerText.includes(kw))) newLogs.push({ type: 'warn', message: 'QR_CODE_TRIGGER_IDENTIFIED', timestamp: new Date().toISOString() });
           
           updated.logs = newLogs.slice(-8);
@@ -401,6 +425,7 @@ const Simulator = ({
         onReset={onReset}
         onExport={exportTranscript}
         investigationComplete={investigationComplete}
+        indicatorCount={getIndicatorCount()}
       />
 
       {/* Main Grid */}
