@@ -57,6 +57,7 @@ const IntelPanel = ({ intel, isResultMode }: IntelPanelProps) => {
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: `${intel.confidence}%` }}
+              transition={{ duration: 0.8, ease: "easeIn" }}
               className={cn(
                 "h-full rounded-full transition-colors duration-500",
                 intel.confidence > 70 ? "bg-alert" : "bg-primary-light"

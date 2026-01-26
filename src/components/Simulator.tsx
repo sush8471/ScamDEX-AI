@@ -107,6 +107,31 @@ const Simulator = ({
     return () => clearInterval(timer);
   }, [startTime, investigationComplete]);
 
+  const analyzeConfidence = (text: string, currentConfidence: number): number => {
+    let increment = 0;
+    const lowerText = text.toLowerCase();
+
+    // 1. Keywords (+15%)
+    const keywords = ["free", "100% off", "urgent", "win", "winner", "prize", "cash", "account blocked", "verify"];
+    if (keywords.some(kw => lowerText.includes(kw))) {
+      increment += 15;
+    }
+
+    // 2. Phone numbers (+20%)
+    const phoneRegex = /(\+?\d{1,4}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/g;
+    if (phoneRegex.test(text)) {
+      increment += 20;
+    }
+
+    // 3. URLs/Links (+25%)
+    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi;
+    if (urlRegex.test(text)) {
+      increment += 25;
+    }
+
+    return Math.min(currentConfidence + increment, 95);
+  };
+
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isResultMode || investigationComplete) return;
 
@@ -153,37 +178,40 @@ const Simulator = ({
       };
       setMessages((prev) => [...prev, agentMsg]);
 
-      setIntel((prev: Intel) => ({
-        ...prev,
-        scamDetected: data.scamDetected ?? prev.scamDetected,
-        scamType: data.scamType || prev.scamType,
-        confidence:
-          data.confidence !== undefined
-            ? data.confidence
-            : Math.min(prev.confidence + 15, 95),
-        upiIds: data.extractedIntelligence?.upiIds
-          ? [...new Set([...prev.upiIds, ...data.extractedIntelligence.upiIds])]
-          : prev.upiIds,
-        phoneNumbers: data.extractedIntelligence?.phoneNumbers
-          ? [
-              ...new Set([
-                ...prev.phoneNumbers,
-                ...data.extractedIntelligence.phoneNumbers,
-              ]),
-            ]
-          : prev.phoneNumbers,
-        links: data.extractedIntelligence?.links
-          ? [...new Set([...prev.links, ...data.extractedIntelligence.links])]
-          : prev.links,
-        keywords: data.extractedIntelligence?.keywords
-          ? [
-              ...new Set([
-                ...prev.keywords,
-                ...data.extractedIntelligence.keywords,
-              ]),
-            ]
-          : prev.keywords,
-      }));
+      setIntel((prev: Intel) => {
+        const newConfidence = data.confidence !== undefined 
+          ? data.confidence 
+          : analyzeConfidence(text, prev.confidence);
+
+        return {
+          ...prev,
+          scamDetected: data.scamDetected ?? prev.scamDetected,
+          scamType: data.scamType || prev.scamType,
+          confidence: newConfidence,
+          upiIds: data.extractedIntelligence?.upiIds
+            ? [...new Set([...prev.upiIds, ...data.extractedIntelligence.upiIds])]
+            : prev.upiIds,
+          phoneNumbers: data.extractedIntelligence?.phoneNumbers
+            ? [
+                ...new Set([
+                  ...prev.phoneNumbers,
+                  ...data.extractedIntelligence.phoneNumbers,
+                ]),
+              ]
+            : prev.phoneNumbers,
+          links: data.extractedIntelligence?.links
+            ? [...new Set([...prev.links, ...data.extractedIntelligence.links])]
+            : prev.links,
+          keywords: data.extractedIntelligence?.keywords
+            ? [
+                ...new Set([
+                  ...prev.keywords,
+                  ...data.extractedIntelligence.keywords,
+                ]),
+              ]
+            : prev.keywords,
+        };
+      });
 
       if (data.investigationComplete === true) {
         setInvestigationComplete(true);
@@ -224,11 +252,14 @@ const Simulator = ({
                 ...new Set([...prev.phoneNumbers, agentReply.extracted.phone]),
               ];
           }
-          updated.confidence = Math.min(prev.confidence + 20, 98);
+          
+          updated.confidence = analyzeConfidence(text, prev.confidence);
+          
           if (updated.confidence > 80) {
             updated.scamDetected = true;
             updated.scamType = "Financial Fraud";
-            setInvestigationComplete(true);
+            // Do not immediately set investigationComplete to allow for more data extraction if needed
+            // But if it's very high, maybe we should
           }
           return updated;
         });
@@ -365,3 +396,44 @@ const Simulator = ({
 };
 
 export default Simulator;
+
+const getMockResponse = (text: string) => {
+  const lowerText = text.toLowerCase();
+  
+  if (lowerText.includes("upi") || lowerText.includes("@")) {
+    return {
+      text: "I see you're asking about payment. Most users find UPI the fastest way to secure the deal. Is there anything else you need?",
+      extracted: { upi: "secure.pay@okaxis" },
+      isFinal: false
+    };
+  }
+  
+  if (lowerText.includes("link") || lowerText.includes("http")) {
+    return {
+      text: "The verification link is standard for all premium registrations. It's a secure portal hosted on our corporate servers.",
+      extracted: { link: "https://secure-verification-portal.net/login" },
+      isFinal: false
+    };
+  }
+
+  if (lowerText.includes("number") || lowerText.includes("call")) {
+    return {
+      text: "You can reach our support manager directly at the priority desk for faster processing.",
+      extracted: { phone: "+91 98765 43210" },
+      isFinal: false
+    };
+  }
+
+  if (lowerText.includes("done") || lowerText.includes("sent") || lowerText.includes("paid")) {
+    return {
+      text: "Excellent. I'm processing your request now. We will notify you once the transaction is verified on the blockchain.",
+      isFinal: true
+    };
+  }
+
+  return {
+    text: "Interesting. Please tell me more about how you found us. We want to ensure all our clients get the best onboarding experience.",
+    isFinal: false
+  };
+};
+
