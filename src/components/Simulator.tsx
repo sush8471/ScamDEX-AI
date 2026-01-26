@@ -41,7 +41,7 @@ const Simulator = ({
   const [messages, setMessages] = useState<any[]>([]);
   const [intel, setIntel] = useState<Intel>({
     scamDetected: false,
-    scamType: "Pending...",
+    scamType: "Analyzing...",
     confidence: 0,
     upiIds: [],
     phoneNumbers: [],
@@ -63,7 +63,7 @@ const Simulator = ({
         setIntel(
           data.intel || {
             scamDetected: false,
-            scamType: "Pending...",
+            scamType: "Analyzing...",
             confidence: 0,
             upiIds: [],
             phoneNumbers: [],
@@ -132,6 +132,12 @@ const Simulator = ({
     return Math.min(currentConfidence + increment, 95);
   };
 
+  const getClassification = (confidence: number): string => {
+    if (confidence > 70) return "Scam Confirmed";
+    if (confidence > 30) return "Likely Scam";
+    return "Analyzing...";
+  };
+
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isResultMode || investigationComplete) return;
 
@@ -183,10 +189,13 @@ const Simulator = ({
           ? data.confidence 
           : analyzeConfidence(text, prev.confidence);
 
+        const newScamType = data.scamType || getClassification(newConfidence);
+        const newScamDetected = data.scamDetected ?? (newConfidence > 70);
+
         return {
           ...prev,
-          scamDetected: data.scamDetected ?? prev.scamDetected,
-          scamType: data.scamType || prev.scamType,
+          scamDetected: newScamDetected,
+          scamType: newScamType,
           confidence: newConfidence,
           upiIds: data.extractedIntelligence?.upiIds
             ? [...new Set([...prev.upiIds, ...data.extractedIntelligence.upiIds])]
@@ -254,13 +263,9 @@ const Simulator = ({
           }
           
           updated.confidence = analyzeConfidence(text, prev.confidence);
+          updated.scamType = getClassification(updated.confidence);
+          updated.scamDetected = updated.confidence > 70;
           
-          if (updated.confidence > 80) {
-            updated.scamDetected = true;
-            updated.scamType = "Financial Fraud";
-            // Do not immediately set investigationComplete to allow for more data extraction if needed
-            // But if it's very high, maybe we should
-          }
           return updated;
         });
 

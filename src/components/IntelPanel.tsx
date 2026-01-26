@@ -34,9 +34,10 @@ const IntelPanel = ({ intel, isResultMode }: IntelPanelProps) => {
             <div className="flex items-center gap-2">
               <span className={cn(
                 "text-lg font-bold",
-                intel.scamDetected ? "text-alert" : "text-primary-light"
+                intel.confidence > 70 ? "text-alert" : 
+                intel.confidence > 30 ? "text-accent" : "text-primary-light"
               )}>
-                {intel.scamDetected ? 'Scam Detected' : 'Analyzing...'}
+                {intel.scamType}
               </span>
             </div>
           </div>
