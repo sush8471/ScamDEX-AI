@@ -105,12 +105,28 @@ const ChatPanel = ({ messages, onSend, isTyping, isLocked, investigationComplete
             </div>
 
             <div className={cn(
-              "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm",
+              "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap break-words",
               msg.sender === 'agent' 
                 ? "bg-primary text-white rounded-tr-none" 
                 : "bg-white/10 text-slate-200 border border-white/5 rounded-tl-none"
             )}>
-              {msg.text}
+              {msg.text.split(/(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi).map((part: string, i: number) => {
+                if (part && part.match(/(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi)) {
+                  return (
+                    <a 
+                      key={i}
+                      href={part.startsWith('http') ? part : `https://${part}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent underline font-medium hover:text-accent-light transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {part}
+                    </a>
+                  )
+                }
+                return part
+              })}
             </div>
           </motion.div>
         ))}

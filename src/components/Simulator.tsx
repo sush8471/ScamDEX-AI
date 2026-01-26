@@ -124,12 +124,17 @@ const Simulator = ({
     }
 
     // 3. URLs/Links (+25%)
-    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi;
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi;
     if (urlRegex.test(text)) {
       increment += 25;
     }
 
     return Math.min(currentConfidence + increment, 95);
+  };
+
+  const extractLinks = (text: string): string[] => {
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi;
+    return text.match(urlRegex) || [];
   };
 
   const getClassification = (confidence: number): string => {
@@ -192,6 +197,13 @@ const Simulator = ({
         const newScamType = data.scamType || getClassification(newConfidence);
         const newScamDetected = data.scamDetected ?? (newConfidence > 70);
 
+        const localLinks = extractLinks(text);
+        const combinedLinks = [...new Set([
+          ...prev.links, 
+          ...localLinks,
+          ...(data.extractedIntelligence?.links || [])
+        ])];
+
         return {
           ...prev,
           scamDetected: newScamDetected,
@@ -208,9 +220,7 @@ const Simulator = ({
                 ]),
               ]
             : prev.phoneNumbers,
-          links: data.extractedIntelligence?.links
-            ? [...new Set([...prev.links, ...data.extractedIntelligence.links])]
-            : prev.links,
+          links: combinedLinks,
           keywords: data.extractedIntelligence?.keywords
             ? [
                 ...new Set([
@@ -265,6 +275,10 @@ const Simulator = ({
           updated.confidence = analyzeConfidence(text, prev.confidence);
           updated.scamType = getClassification(updated.confidence);
           updated.scamDetected = updated.confidence > 70;
+          
+          // Also extract links locally in fallback mode
+          const localLinks = extractLinks(text);
+          updated.links = [...new Set([...updated.links, ...localLinks])];
           
           return updated;
         });
@@ -415,7 +429,7 @@ const getMockResponse = (text: string) => {
   
   if (lowerText.includes("link") || lowerText.includes("http")) {
     return {
-      text: "The verification link is standard for all premium registrations. It's a secure portal hosted on our corporate servers.",
+      text: "The verification link is standard for all premium registrations. It's a secure portal hosted on our corporate servers. Visit: www.secure-verify-pay.com",
       extracted: { link: "https://secure-verification-portal.net/login" },
       isFinal: false
     };
@@ -441,4 +455,3 @@ const getMockResponse = (text: string) => {
     isFinal: false
   };
 };
-

@@ -130,6 +130,11 @@ const IntelSection = ({ icon, title, items, accent, isLink = false }: any) => {
           {icon}
         </div>
         <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wide">{title}</h4>
+        {items.length > 1 && (
+          <span className="bg-alert/20 text-alert text-[9px] px-1.5 py-0.5 rounded-full border border-alert/30 font-bold ml-2">
+            MULTIPLE
+          </span>
+        )}
         <span className="ml-auto text-[10px] font-mono text-slate-500">{items.length}</span>
       </div>
 
@@ -144,17 +149,26 @@ const IntelSection = ({ icon, title, items, accent, isLink = false }: any) => {
               animate={{ x: 0, opacity: 1 }}
               className="flex items-center justify-between group p-2 bg-white/5 rounded border border-transparent hover:border-white/10 transition-colors"
             >
-              <span className={cn("text-[11px] font-mono truncate max-w-[180px]", isLink ? "text-blue-400 underline" : "text-white")}>
+              <span className={cn("text-[11px] font-mono truncate max-w-[180px]", isLink ? "text-accent underline" : "text-white")}>
                 {item}
               </span>
               <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <button className="p-1 hover:text-white text-slate-500">
+                <button 
+                  className="p-1 hover:text-white text-slate-500"
+                  onClick={() => navigator.clipboard.writeText(item)}
+                >
                   <Copy size={12} />
                 </button>
                 {isLink && (
-                  <button className="p-1 hover:text-white text-slate-500">
+                  <a 
+                    href={item.startsWith('http') ? item : `https://${item}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1 hover:text-white text-slate-500"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <ExternalLink size={12} />
-                  </button>
+                  </a>
                 )}
               </div>
             </motion.div>
