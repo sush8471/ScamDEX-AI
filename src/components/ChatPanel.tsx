@@ -185,12 +185,15 @@ const ChatPanel = ({ messages, onSend, isTyping, isLocked, investigationComplete
         
         {investigationComplete && (
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-3 text-center"
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 p-3 bg-white/5 border border-white/10 rounded-xl text-center"
           >
-            <p className="text-[10px] text-slate-500 font-medium">
-              This conversation has been safely analyzed.
+            <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">
+              Communication Link Sealed
+            </p>
+            <p className="text-[11px] text-slate-500 mt-1">
+              The autonomous engagement has concluded. All extracted intelligence has been secured.
             </p>
           </motion.div>
         )}

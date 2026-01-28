@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Terminal as TerminalIcon,
   AlertTriangle,
+  FileJson,
 } from "lucide-react";
 import ChatPanel from "./ChatPanel";
 import IntelPanel from "./IntelPanel";
@@ -20,6 +21,7 @@ interface SimulatorProps {
   onReset: () => void;
   onComplete: () => void;
   isResultMode: boolean;
+  isJudge?: boolean;
 }
 
 interface Intel {
@@ -38,6 +40,7 @@ const Simulator = ({
   onReset,
   onComplete,
   isResultMode,
+  isJudge = false,
 }: SimulatorProps) => {
   const [messages, setMessages] = useState<any[]>([]);
   const [intel, setIntel] = useState<Intel>({
@@ -55,6 +58,7 @@ const Simulator = ({
   });
   const [isTyping, setIsTyping] = useState(false);
   const [investigationComplete, setInvestigationComplete] = useState(false);
+  const [showResultOverlay, setShowResultOverlay] = useState(true);
   const [startTime] = useState(Date.now());
   const [elapsed, setElapsed] = useState("00:00");
 
@@ -65,21 +69,20 @@ const Simulator = ({
       try {
         const data = JSON.parse(savedSession);
         setMessages(data.messages || []);
-        setIntel(
-          data.intel || {
-            scamDetected: false,
-            scamType: "Analyzing...",
-            confidence: 0,
-            upiIds: [],
-            phoneNumbers: [],
-            links: [],
-            keywords: [],
-            logs: [
-              { type: 'ok', message: 'NEURAL_ENGINE_ACTIVE', timestamp: new Date().toISOString() },
-              { type: 'wait', message: 'LISTENING_FOR_INTENT', timestamp: new Date().toISOString() },
-            ],
-          },
-        );
+        const loadedIntel = data.intel || {};
+        setIntel({
+          scamDetected: loadedIntel.scamDetected || false,
+          scamType: loadedIntel.scamType || "Analyzing...",
+          confidence: loadedIntel.confidence || 0,
+          upiIds: loadedIntel.upiIds || [],
+          phoneNumbers: loadedIntel.phoneNumbers || [],
+          links: loadedIntel.links || [],
+          keywords: loadedIntel.keywords || [],
+          logs: loadedIntel.logs || [
+            { type: 'ok', message: 'NEURAL_ENGINE_ACTIVE', timestamp: new Date().toISOString() },
+            { type: 'wait', message: 'LISTENING_FOR_INTENT', timestamp: new Date().toISOString() },
+          ],
+        });
         setInvestigationComplete(data.investigationComplete || false);
       } catch (e) {
         console.error("Failed to load session from localStorage", e);
@@ -307,12 +310,11 @@ const Simulator = ({
         };
       });
 
-      if (data.investigationComplete === true) {
+      if (data.isFinal || (data.scamDetected && data.confidence > 90) || data.investigationComplete) {
         setInvestigationComplete(true);
-      }
-
-      if (data.isFinal || (data.scamDetected && data.confidence > 90)) {
-        setTimeout(onComplete, 2000);
+        if (data.isFinal || (data.scamDetected && data.confidence > 90)) {
+          setTimeout(onComplete, 2000);
+        }
       }
     } catch (error) {
       console.error("Webhook error, falling back to mock:", error);
@@ -434,6 +436,7 @@ const Simulator = ({
         onExport={exportTranscript}
         investigationComplete={investigationComplete}
         indicatorCount={getIndicatorCount()}
+        isJudge={isJudge}
       />
 
       {/* Main Grid */}
@@ -458,10 +461,11 @@ const Simulator = ({
 
       {/* Result Overlay */}
       <AnimatePresence>
-        {isResultMode && (
+        {isResultMode && showResultOverlay && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
           >
             <motion.div
@@ -497,9 +501,27 @@ const Simulator = ({
                 </div>
               </div>
 
-              <button onClick={onReset} className="btn-primary w-full">
-                Start New Session
-              </button>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button onClick={onReset} className="btn-primary flex-1">
+                  Start New Session
+                </button>
+                <button 
+                  onClick={() => setShowResultOverlay(false)} 
+                  className="btn-outline flex-1"
+                >
+                  Review Investigation
+                </button>
+              </div>
+
+              {isJudge && (
+                <button 
+                  onClick={exportTranscript}
+                  className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg border border-accent/20 transition-all font-bold uppercase tracking-widest text-xs"
+                >
+                  <FileJson size={16} />
+                  Export Final Transcript (JSON)
+                </button>
+              )}
             </motion.div>
           </motion.div>
         )}

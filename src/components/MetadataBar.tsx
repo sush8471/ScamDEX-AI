@@ -14,9 +14,10 @@ interface MetadataBarProps {
   onExport: () => void;
   investigationComplete: boolean;
   indicatorCount: number;
+  isJudge?: boolean;
 }
 
-const MetadataBar = ({ sessionId, elapsed, msgCount, onReset, onExport, investigationComplete, indicatorCount }: MetadataBarProps) => {
+const MetadataBar = ({ sessionId, elapsed, msgCount, onReset, onExport, investigationComplete, indicatorCount, isJudge = false }: MetadataBarProps) => {
   return (
     <div className="bg-surface/80 border-b border-white/5 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-6">
@@ -88,15 +89,17 @@ const MetadataBar = ({ sessionId, elapsed, msgCount, onReset, onExport, investig
           </div>
         )}
 
-        <button 
-          onClick={onExport}
-          disabled={msgCount === 0}
-          className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed group"
-          title="Export Transcript"
-        >
-          <FileJson size={16} className="text-primary-light group-hover:scale-110 transition-transform" />
-          <span className="text-xs font-semibold">Export JSON</span>
-        </button>
+        {isJudge && (
+          <button 
+            onClick={onExport}
+            disabled={msgCount === 0}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed group"
+            title="Export Transcript"
+          >
+            <FileJson size={16} className="text-primary-light group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-semibold">Export JSON</span>
+          </button>
+        )}
         
         <button 
           onClick={onReset}

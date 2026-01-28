@@ -103,7 +103,7 @@ const IntelPanel = ({ intel, isResultMode }: IntelPanelProps) => {
           <span className="text-xs font-bold text-white uppercase tracking-wider">System Log</span>
         </div>
         <div className="space-y-2 font-mono text-[9px] text-slate-500">
-          {intel.logs.map((log, i) => (
+          {Array.isArray(intel.logs) && intel.logs.map((log, i) => (
             <div key={i} className="flex gap-2">
               <span className={cn(
                 "opacity-50",

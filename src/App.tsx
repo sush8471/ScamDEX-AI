@@ -9,12 +9,22 @@ export type AppState = 'landing' | 'simulation' | 'result'
 function App() {
   const [view, setView] = useState<AppState>('landing')
   const [sessionId, setSessionId] = useState('')
+  const [isJudge, setIsJudge] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('role') === 'judge' || params.get('judge') === 'true') {
+      setIsJudge(true)
+    }
+  }, [])
 
   useEffect(() => {
     const savedView = localStorage.getItem('app_view') as AppState
     const savedSessionId = localStorage.getItem('app_sessionId')
-    if (savedView && savedView !== 'landing') {
+    if (savedView && savedView !== 'landing' && savedSessionId) {
       setView(savedView)
+    } else if (savedView !== 'landing') {
+      setView('landing')
     }
     if (savedSessionId) {
       setSessionId(savedSessionId)
@@ -70,6 +80,7 @@ function App() {
               onReset={reset} 
               onComplete={() => setView('result')} 
               isResultMode={view === 'result'}
+              isJudge={isJudge}
             />
           </motion.div>
         )}
