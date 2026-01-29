@@ -11,6 +11,7 @@ import {
   Terminal as TerminalIcon,
   AlertTriangle,
   FileJson,
+  Download,
 } from "lucide-react";
 import ChatPanel from "./ChatPanel";
 import IntelPanel from "./IntelPanel";
@@ -156,8 +157,8 @@ const Simulator = ({
   };
 
   const getClassification = (confidence: number): string => {
-    if (confidence > 70) return "Scam Confirmed";
-    if (confidence > 30) return "Likely Scam";
+    if (confidence >= 75) return "Scam Detected";
+    if (confidence >= 60) return "High Risk";
     return "Analyzing...";
   };
 
@@ -167,17 +168,32 @@ const Simulator = ({
       .replace(/(Thank you|Thanks|I understand|Certainly|I'd be happy to|Great news|I see|I'm sorry to hear that|Message received|Analyzing next steps)[^.!?]*[.!?]/gi, '')
       .trim();
 
-    if (!cleaned) return text; // If regex over-cleaned, return original
+    if (!cleaned) return text;
 
-    // 2. Split into sentences and filter for brevity
+    // 2. Split into sentences
     const sentences = cleaned.match(/[^.!?]+[.!?]+/g) || [cleaned];
     
-    // 3. Limit to max 2 short questions + 1 statement
+    // 3. Select core message (brief)
     const questions = sentences.filter(s => s.trim().endsWith('?')).slice(0, 2);
     const statements = sentences.filter(s => !s.trim().endsWith('?')).slice(0, 1);
+    
+    let result = [...statements, ...questions].join(' ').trim();
+    if (!result) result = cleaned;
 
-    const result = [...statements, ...questions].join(' ').trim();
-    return result || cleaned;
+    // 4. Inject Humanization (Slight variance & Hesitations)
+    const hesitations = ["Hmm... ", "Wait, ", "Let me see... ", "Uh, ", "Hold on, ", "Okay so, "];
+    const endings = ["?", "??", "...", " right?"];
+    
+    // 5% chance to start with a hesitation
+    if (Math.random() < 0.2) {
+      const hesitation = hesitations[Math.floor(Math.random() * hesitations.length)];
+      result = hesitation + result.charAt(0).toLowerCase() + result.slice(1);
+    }
+
+    // Occasionally simplify tone (remove formal transition words)
+    result = result.replace(/\b(However|Therefore|Moreover|Additionally|Furthermore),?\b/gi, 'And');
+
+    return result;
   };
 
   const getIndicatorCount = () => {
@@ -251,7 +267,7 @@ const Simulator = ({
           : analyzeConfidence(text, prev.confidence);
 
         const newScamType = data.scamType || getClassification(newConfidence);
-        const newScamDetected = data.scamDetected ?? (newConfidence > 70);
+        const newScamDetected = data.scamDetected ?? (newConfidence >= 75);
 
         const localLinks = extractLinks(text);
         const combinedLinks = [...new Set([
@@ -322,11 +338,13 @@ const Simulator = ({
       // Fallback to mock logic if webhook fails
       setTimeout(() => {
         const agentReply = getMockResponse(text);
+        const { text: replyText, extracted, isFinal } = agentReply as { text: string; extracted?: any; isFinal: boolean };
+
         setMessages((prev) => [
           ...prev,
           {
             id: Date.now() + 1,
-            text: sanitizeAgentReply(agentReply.text),
+            text: sanitizeAgentReply(replyText),
             sender: "agent",
             timestamp: new Date().toISOString(),
           },
@@ -334,24 +352,24 @@ const Simulator = ({
 
         setIntel((prev: Intel) => {
           const updated = { ...prev };
-          if (agentReply.extracted) {
-            if (agentReply.extracted.upi)
+          if (extracted) {
+            if (extracted.upi)
               updated.upiIds = [
-                ...new Set([...prev.upiIds, agentReply.extracted.upi]),
+                ...new Set([...prev.upiIds, extracted.upi]),
               ];
-            if (agentReply.extracted.link)
+            if (extracted.link)
               updated.links = [
-                ...new Set([...prev.links, agentReply.extracted.link]),
+                ...new Set([...prev.links, extracted.link]),
               ];
-            if (agentReply.extracted.phone)
+            if (extracted.phone)
               updated.phoneNumbers = [
-                ...new Set([...prev.phoneNumbers, agentReply.extracted.phone]),
+                ...new Set([...prev.phoneNumbers, extracted.phone]),
               ];
           }
           
           updated.confidence = analyzeConfidence(text, prev.confidence);
           updated.scamType = getClassification(updated.confidence);
-          updated.scamDetected = updated.confidence > 70;
+          updated.scamDetected = updated.confidence >= 75;
           
           // Local extractions for Mock
           const localLinks = extractLinks(text);
@@ -377,7 +395,7 @@ const Simulator = ({
           return updated;
         });
 
-        if (agentReply.isFinal) {
+        if (isFinal) {
           setInvestigationComplete(true);
           setTimeout(onComplete, 1500);
         }
@@ -398,6 +416,7 @@ const Simulator = ({
       riskAssessment: {
         scamDetected: intel.scamDetected,
         confidenceScore: intel.confidence / 100,
+        classification: intel.scamType,
       },
       messages: messages.map((m) => ({
         sender: m.sender,
@@ -446,6 +465,7 @@ const Simulator = ({
           <ChatPanel
             messages={messages}
             onSend={handleSendMessage}
+            onExport={exportTranscript}
             isTyping={isTyping}
             isLocked={isResultMode || investigationComplete}
             investigationComplete={investigationComplete}
@@ -455,7 +475,12 @@ const Simulator = ({
 
         {/* Right: Intel Panel */}
         <div className="lg:col-span-4 flex flex-col min-h-0">
-          <IntelPanel intel={intel} isResultMode={isResultMode} />
+          <IntelPanel 
+            intel={intel} 
+            isResultMode={isResultMode} 
+            indicatorCount={getIndicatorCount()} 
+            userMsgCount={messages.filter(m => m.sender === 'user').length}
+          />
         </div>
       </div>
 
@@ -513,15 +538,13 @@ const Simulator = ({
                 </button>
               </div>
 
-              {isJudge && (
-                <button 
-                  onClick={exportTranscript}
-                  className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg border border-accent/20 transition-all font-bold uppercase tracking-widest text-xs"
-                >
-                  <FileJson size={16} />
-                  Export Final Transcript (JSON)
-                </button>
-              )}
+              <button 
+                onClick={exportTranscript}
+                className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg border border-accent/20 transition-all font-bold uppercase tracking-widest text-xs"
+              >
+                <Download size={16} />
+                Download Final Transcript (JSON)
+              </button>
             </motion.div>
           </motion.div>
         )}
@@ -536,24 +559,24 @@ const getMockResponse = (text: string) => {
   const lowerText = text.toLowerCase();
   
   if (lowerText.includes("upi") || lowerText.includes("@")) {
-    return {
-      text: "Is this the right UPI? Should I pay now?",
-      extracted: { upi: "secure.pay@okaxis" },
-      isFinal: false
-    };
+    const options = [
+      { text: "Hmm... wait, is this the right UPI? Should I pay it right now?", extracted: { upi: "secure.pay@okaxis" } },
+      { text: "Okay so, secure.pay@okaxis... that's the one? I'm trying to send it now.", extracted: { upi: "secure.pay@okaxis" } }
+    ];
+    return { ...options[Math.floor(Math.random() * options.length)], isFinal: false };
   }
   
   if (lowerText.includes("link") || lowerText.includes("http")) {
-    return {
-      text: "The link isn't opening on my phone. Should I use a different browser?",
-      extracted: { link: "https://secure-verification-portal.net/login" },
-      isFinal: false
-    };
+    const options = [
+      { text: "Uh, the link isn't opening on my phone. Should I try using my laptop instead?", extracted: { link: "https://secure-portal.net/login" } },
+      { text: "Let me see... secure-portal.net? It's showing a security warning. Is that normal?", extracted: { link: "https://secure-portal.net/login" } }
+    ];
+    return { ...options[Math.floor(Math.random() * options.length)], isFinal: false };
   }
 
   if (lowerText.includes("number") || lowerText.includes("call")) {
     return {
-      text: "Can I call this number to verify? What's your name?",
+      text: "Wait, can I just call this number +91 98765 43210 to verify? Who am I speaking with?",
       extracted: { phone: "+91 98765 43210" },
       isFinal: false
     };
@@ -561,13 +584,19 @@ const getMockResponse = (text: string) => {
 
   if (lowerText.includes("done") || lowerText.includes("sent") || lowerText.includes("paid")) {
     return {
-      text: "I sent it. When will I get the benefits?",
+      text: "I sent it! Let me know when the benefits show up in my account.",
       isFinal: true
     };
   }
 
+  const generic = [
+    "So how does this actually work? Is there like a registration fee or something?",
+    "Okay, I'm a bit confused. What do I need to do next?",
+    "Hmm... I've heard about these things. Is it really 100% genuine?"
+  ];
+  
   return {
-    text: "So how does this work? Is there a registration fee?",
+    text: generic[Math.floor(Math.random() * generic.length)],
     isFinal: false
   };
 };

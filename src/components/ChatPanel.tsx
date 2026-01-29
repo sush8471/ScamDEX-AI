@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, User, Bot, Loader2, ShieldCheck } from 'lucide-react'
+import { Send, User, Bot, Loader2, ShieldCheck, Download } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -11,13 +11,14 @@ function cn(...inputs: ClassValue[]) {
 interface ChatPanelProps {
   messages: any[];
   onSend: (text: string) => void;
+  onExport: () => void;
   isTyping: boolean;
   isLocked: boolean;
   investigationComplete: boolean;
   stage: string;
 }
 
-const ChatPanel = ({ messages, onSend, isTyping, isLocked, investigationComplete, stage }: ChatPanelProps) => {
+const ChatPanel = ({ messages, onSend, onExport, isTyping, isLocked, investigationComplete, stage }: ChatPanelProps) => {
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -116,12 +117,15 @@ const ChatPanel = ({ messages, onSend, isTyping, isLocked, investigationComplete
               )}
             </div>
 
-            <div className={cn(
-              "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap break-words",
-              msg.sender === 'agent' 
-                ? "bg-primary text-white rounded-tr-none" 
-                : "bg-white/10 text-slate-200 border border-white/5 rounded-tl-none"
-            )}>
+            <div 
+              title={new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              className={cn(
+                "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap break-words cursor-help",
+                msg.sender === 'agent' 
+                  ? "bg-primary text-white rounded-tr-none" 
+                  : "bg-white/10 text-slate-200 border border-white/5 rounded-tl-none"
+              )}
+            >
               {msg.text.split(/(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi).map((part: string, i: number) => {
                 if (part && part.match(/(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*)/gi)) {
                   return (
@@ -160,44 +164,79 @@ const ChatPanel = ({ messages, onSend, isTyping, isLocked, investigationComplete
         )}
       </div>
 
-      {/* Input Area */}
-      <form 
-        onSubmit={handleSubmit}
-        className="p-6 pt-0"
-      >
-        <div className="flex items-center gap-3 bg-white/5 border border-white/10 p-1.5 rounded-xl focus-within:border-primary/50 transition-colors">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={isLocked || isTyping}
-            placeholder={isLocked ? "Session Complete" : "Message target..."}
-            className="flex-1 bg-transparent border-none focus:ring-0 text-sm px-4 py-2 disabled:cursor-not-allowed"
-          />
-          <button
-            type="submit"
-            disabled={isLocked || isTyping || !input.trim()}
-            className="w-10 h-10 flex items-center justify-center bg-primary hover:bg-primary-dark text-white rounded-lg transition-all active:scale-90 disabled:opacity-50 disabled:bg-slate-700"
-          >
-            <Send size={18} />
-          </button>
-        </div>
-        
-        {investigationComplete && (
-          <motion.div 
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 p-3 bg-white/5 border border-white/10 rounded-xl text-center"
-          >
-            <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">
-              Communication Link Sealed
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1">
-              The autonomous engagement has concluded. All extracted intelligence has been secured.
-            </p>
-          </motion.div>
-        )}
-      </form>
+      {/* Input / Completion Area */}
+      <div className="p-6 pt-0">
+        <AnimatePresence mode="wait">
+          {!investigationComplete ? (
+            <motion.form 
+              key="input-form"
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0, y: 10 }}
+              onSubmit={handleSubmit}
+              className="relative"
+            >
+              <div className="flex items-center gap-3 bg-white/5 border border-white/10 p-1.5 rounded-xl focus-within:border-primary/50 transition-colors shadow-inner">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  disabled={isLocked || isTyping}
+                  placeholder="Message target..."
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-sm px-4 py-2 disabled:cursor-not-allowed text-white placeholder:text-slate-500"
+                />
+                <button
+                  type="submit"
+                  disabled={isLocked || isTyping || !input.trim()}
+                  className="w-10 h-10 flex items-center justify-center bg-primary hover:bg-primary-dark text-white rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:bg-slate-700 disabled:scale-100"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </motion.form>
+          ) : (
+            <motion.div 
+              key="completion-panel"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              className="relative group"
+            >
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-accent/20 to-primary/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
+              <div className="relative p-6 bg-surface/90 border border-white/10 rounded-2xl text-center backdrop-blur-md">
+                <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-accent/30">
+                  <ShieldCheck className="text-accent" size={24} />
+                </div>
+                <h3 className="text-xs font-mono font-bold text-white uppercase tracking-[0.2em] mb-2">
+                  Communication Link Terminated
+                </h3>
+                <div className="h-px w-12 bg-white/10 mx-auto mb-3" />
+                <p className="text-xs text-slate-400 leading-relaxed max-w-sm mx-auto font-medium">
+                  The autonomous engagement has concluded successfully. All intelligence has been harvested and the communication channel has been neutralized.
+                </p>
+                <div className="mt-4 flex items-center justify-center gap-4">
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/5">
+                    <span className="w-1.5 h-1.5 bg-accent rounded-full shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
+                    <span className="text-[9px] font-mono text-slate-500 uppercase tracking-tighter">Encrypted</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 border border-white/5">
+                    <span className="w-1.5 h-1.5 bg-primary-light rounded-full shadow-[0_0_5px_rgba(56,189,248,0.8)]" />
+                    <span className="text-[9px] font-mono text-slate-500 uppercase tracking-tighter">Archived</span>
+                  </div>
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={onExport}
+                  className="mt-6 w-full py-3 bg-primary/20 hover:bg-primary/30 text-primary-light border border-primary/30 rounded-xl flex items-center justify-center gap-2 transition-all font-bold text-xs uppercase tracking-widest"
+                >
+                  <Download size={16} />
+                  Download Investigation Transcript
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
